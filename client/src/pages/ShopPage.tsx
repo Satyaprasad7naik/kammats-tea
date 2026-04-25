@@ -125,6 +125,8 @@ const ProductCard = ({ product }: { product: typeof products[0] }) => {
   );
 };
 
+const MARQUEE_ITEMS = [...Array(6)];
+
 const ShopPage = () => {
   return (
     <div className="bg-[#f5ebe0] min-h-screen text-[#3e2a21] font-sans overflow-x-hidden">
@@ -135,7 +137,7 @@ const ShopPage = () => {
           .shop-marquee-inner { display: flex; width: max-content; animation: shop-marquee 25s linear infinite; }
         `}</style>
         <div className="shop-marquee-inner">
-          {[...Array(6)].map((_, i) => (
+          {MARQUEE_ITEMS.map((_, i) => (
             <span key={i} className="font-black uppercase whitespace-nowrap mx-6 tracking-tighter" style={{ fontSize: 'clamp(8rem, 18vw, 18rem)', lineHeight: 0.85, color: '#3e2a21' }}>
               EXPLORE <span style={{ color: '#d89945' }}>FULL</span> COLLECTION
             </span>
