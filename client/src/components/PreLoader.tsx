@@ -4,7 +4,6 @@ import { useGSAP } from "@gsap/react";
 import preImg from "../assets/images/nav-logo.svg"
 
 const PreLoader = ({ onComplete }: { onComplete: () => void }) => {
-    console.log("PreLoader: Rendering...");
     const [progress, setProgress] = useState(0);
     const [canHide, setCanHide] = useState(false); // flag to control hiding
 
