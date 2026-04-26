@@ -1,78 +1,30 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FooterSection from '../sections/FooterSection';
 import TestimonialSection from '../sections/TestimonialSection';
+import { useCart } from '../context/CartContext';
 
-const products = [
-  {
-    id: '1',
-    name: 'Chocolate Milk',
-    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e515a96de6ca581e89ee2_Shop-product-cup_1.webp',
-    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e5150e05e18c255f70b1c_Shop-product-back_1.svg',
-    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e515f8a6b1236299f2b17_pieces.png',
-    color: '#d69766',
-    textColor: '#fff',
-    path: '/product/chocolate-milk'
-  },
-  {
-    id: '2',
-    name: 'Strawberry Milk',
-    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50cdb36e7db2c2ca3681_Shop-product-cup_2.webp',
-    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50c4e61989bc963cf1b1_Shop-product-back_1.svg',
-    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50d598cd58638dbad73d_pieces.png',
-    color: '#d94b59',
-    textColor: '#fff',
-    path: '/product/strawberry-milk'
-  },
-  {
-    id: '3',
-    name: 'Cookies & Cream',
-    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784f8dd4cf9446e5030563d_cookies%26Cream_card_cup.webp',
-    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784f6be638ec0f46af1327d_cookies%26Cream_card_back.svg',
-    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/67c5bb342320ea03fe81283a_558_pieces-1.webp',
-    color: '#439be4',
-    textColor: '#fff',
-    path: '/product/cookies-cream'
-  },
-  {
-    id: '4',
-    name: 'Peanut Butter Chocolate',
-    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784fc2b1b4361681f540c65_Peanutbutterchocolate_card_cup.webp',
-    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784fc2634f4e82d81ad8d7b_Peanut%20butter%20chocolate_card_back.svg',
-    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784fce5478942b1f4c98048_Peanut%20butter%20chocolate_card_additional.webp',
-    color: '#eca049',
-    textColor: '#fff',
-    path: '/product/peanut-butter-chocolate'
-  },
-  {
-    id: '5',
-    name: 'Vanilla Milkshake',
-    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50b22ad7e046f421bf69_Shop-product-cup_3.webp',
-    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e5034822e237fb9f89d3f_Shop-product-back_3.svg',
-    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e503f244fae7c3bd61131_pieces.png',
-    color: '#e8d5a3',
-    textColor: '#a08040',
-    path: '/product/vanilla-milkshake'
-  },
-  {
-    id: '6',
-    name: 'Max Chocolate Milk',
-    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50f26a9a9b40ec9058de_Shop-product-cup_4.webp',
-    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50e5c4d66d476164b4ae_Shop-product-back_4.svg',
-    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50f43ac4bddacd084a9f_pieces.png',
-    color: '#2b1b14',
-    textColor: '#fff',
-    path: '/product/max-chocolate-milk'
-  }
-];
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription: string;
+  price: number;
+  gstRate: number;
+  hsnCode: string;
+  stock: number;
+  category: string;
+  images: string[];
+}
 
-const ProductCard = ({ product }: { product: typeof products[0] }) => {
-  const cardRef = useRef<HTMLAnchorElement>(null);
+const ProductCard = ({ product }: { product: Product }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
   const canRef = useRef<HTMLImageElement>(null);
   const piecesRef = useRef<HTMLImageElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
+  const { addToCart } = useCart();
 
   useEffect(() => {
     const card = cardRef.current;
@@ -104,28 +56,64 @@ const ProductCard = ({ product }: { product: typeof products[0] }) => {
     };
   }, []);
 
+  const [image1, image2, image3, color, textColor] = product.images;
+
   return (
-    <Link ref={cardRef} to={product.path} className="shop-card relative flex flex-col overflow-hidden rounded-2xl cursor-pointer" style={{ backgroundColor: product.color, aspectRatio: '3 / 4' }}>
-      <img src={product.backImage} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" draggable={false} />
-      <img ref={piecesRef} src={product.piecesImage} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none z-[3]" draggable={false} />
+    <div ref={cardRef} className="shop-card relative flex flex-col overflow-hidden rounded-2xl cursor-pointer group" style={{ backgroundColor: color || '#d69766', aspectRatio: '3 / 4' }}>
+      {image2 && <img src={image2} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" draggable={false} />}
+      {image3 && <img ref={piecesRef} src={image3} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none z-[3]" draggable={false} />}
       <div className="relative z-10 px-4 md:px-6 pt-5 md:pt-7">
-        <h3 className="font-black uppercase leading-tight tracking-tight" style={{ color: product.textColor, fontSize: 'clamp(1rem, 3.5vw, 2rem)', textShadow: '0 2px 8px rgba(0,0,0,0.18)' }}>
+        <h3 className="font-black uppercase leading-tight tracking-tight" style={{ color: textColor || '#fff', fontSize: 'clamp(1rem, 3.5vw, 2rem)', textShadow: '0 2px 8px rgba(0,0,0,0.18)' }}>
           {product.name}
         </h3>
+        <p className="font-bold text-lg mt-2" style={{ color: textColor || '#fff' }}>₹{product.price}</p>
       </div>
       <div className="relative z-[4] flex-1 flex items-end justify-center pb-10">
-        <img ref={canRef} src={product.image} alt={product.name} className="object-contain drop-shadow-2xl select-none" style={{ height: '72%', maxHeight: '360px', width: 'auto', transformOrigin: 'bottom center' }} draggable={false} />
+        {image1 && <img ref={canRef} src={image1} alt={product.name} className="object-contain drop-shadow-2xl select-none transition-transform duration-500 group-hover:scale-105" style={{ height: '72%', maxHeight: '360px', width: 'auto', transformOrigin: 'bottom center' }} draggable={false} />}
       </div>
       <div ref={ctaRef} className="absolute bottom-5 left-0 right-0 z-20 flex justify-center pointer-events-none">
-        <span className="px-8 py-3 rounded-full bg-white/95 text-[#3e2a21] font-bold text-sm tracking-widest uppercase shadow-xl pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-          Shop in store
-        </span>
+        <button
+          className="px-8 py-3 rounded-full bg-white/95 text-[#3e2a21] font-bold text-sm tracking-widest uppercase shadow-xl pointer-events-auto hover:bg-[#3e2a21] hover:text-white transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            addToCart({
+              id: product.id,
+              name: product.name,
+              slug: product.slug,
+              price: product.price,
+              gstRate: product.gstRate,
+              image: image1,
+              stock: product.stock,
+            });
+          }}
+        >
+          Add to Cart
+        </button>
       </div>
-    </Link>
+    </div>
   );
 };
 
 const ShopPage = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/products');
+        const data = await response.json();
+        setProducts(data);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   return (
     <div className="bg-[#f5ebe0] min-h-screen text-[#3e2a21] font-sans overflow-x-hidden">
       <Navbar />
@@ -147,11 +135,17 @@ const ShopPage = () => {
       </section>
 
       <section className="px-3 md:px-4 pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#3e2a21] border-t-transparent"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
 
       <div className="pt-20">
