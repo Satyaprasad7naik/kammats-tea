@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FooterSection from '../sections/FooterSection';
 import TestimonialSection from '../sections/TestimonialSection';
@@ -69,7 +68,7 @@ const products = [
 ];
 
 const ProductCard = ({ product }: { product: typeof products[0] }) => {
-  const cardRef = useRef<HTMLAnchorElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const canRef = useRef<HTMLImageElement>(null);
   const piecesRef = useRef<HTMLImageElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
@@ -105,7 +104,7 @@ const ProductCard = ({ product }: { product: typeof products[0] }) => {
   }, []);
 
   return (
-    <Link ref={cardRef} to={product.path} className="shop-card relative flex flex-col overflow-hidden rounded-2xl cursor-pointer" style={{ backgroundColor: product.color, aspectRatio: '3 / 4' }}>
+    <div ref={cardRef} className="shop-card relative flex flex-col overflow-hidden rounded-2xl cursor-pointer" style={{ backgroundColor: product.color, aspectRatio: '3 / 4' }}>
       <img src={product.backImage} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" draggable={false} />
       <img ref={piecesRef} src={product.piecesImage} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none z-[3]" draggable={false} />
       <div className="relative z-10 px-4 md:px-6 pt-5 md:pt-7">
@@ -121,7 +120,7 @@ const ProductCard = ({ product }: { product: typeof products[0] }) => {
           Shop in store
         </span>
       </div>
-    </Link>
+    </div>
   );
 };
 
