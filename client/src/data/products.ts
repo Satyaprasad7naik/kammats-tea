@@ -1,0 +1,80 @@
+export const products = [
+  {
+    id: '1',
+    name: 'Chocolate Milk',
+    price: 35.00,
+    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e515a96de6ca581e89ee2_Shop-product-cup_1.webp',
+    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e5150e05e18c255f70b1c_Shop-product-back_1.svg',
+    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e515f8a6b1236299f2b17_pieces.png',
+    color: '#d69766',
+    textColor: '#fff',
+    path: '/product/chocolate-milk',
+    slug: 'chocolate-milk',
+    description: 'Rich, creamy, and packed with real cocoa. A classic favorite for any time of the day.'
+  },
+  {
+    id: '2',
+    name: 'Strawberry Milk',
+    price: 35.00,
+    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50cdb36e7db2c2ca3681_Shop-product-cup_2.webp',
+    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50c4e61989bc963cf1b1_Shop-product-back_1.svg',
+    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50d598cd58638dbad73d_pieces.png',
+    color: '#d94b59',
+    textColor: '#fff',
+    path: '/product/strawberry-milk',
+    slug: 'strawberry-milk',
+    description: 'Sweet, refreshing, and made with real strawberries. The perfect blend of fruit and milk.'
+  },
+  {
+    id: '3',
+    name: 'Cookies & Cream',
+    price: 40.00,
+    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784f8dd4cf9446e5030563d_cookies%26Cream_card_cup.webp',
+    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784f6be638ec0f46af1327d_cookies%26Cream_card_back.svg',
+    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/67c5bb342320ea03fe81283a_558_pieces-1.webp',
+    color: '#439be4',
+    textColor: '#fff',
+    path: '/product/cookies-cream',
+    slug: 'cookies-cream',
+    description: 'Indulgent cookies mixed directly into our signature milk. A dessert in a bottle.'
+  },
+  {
+    id: '4',
+    name: 'Peanut Butter Chocolate',
+    price: 45.00,
+    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784fc2b1b4361681f540c65_Peanutbutterchocolate_card_cup.webp',
+    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784fc2634f4e82d81ad8d7b_Peanut%20butter%20chocolate_card_back.svg',
+    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/6784fce5478942b1f4c98048_Peanut%20butter%20chocolate_card_additional.webp',
+    color: '#eca049',
+    textColor: '#fff',
+    path: '/product/peanut-butter-chocolate',
+    slug: 'peanut-butter-chocolate',
+    description: 'The ultimate flavor combo. Salty, sweet, and incredibly satisfying.'
+  },
+  {
+    id: '5',
+    name: 'Vanilla Milkshake',
+    price: 35.00,
+    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50b22ad7e046f421bf69_Shop-product-cup_3.webp',
+    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e5034822e237fb9f89d3f_Shop-product-back_3.svg',
+    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e503f244fae7c3bd61131_pieces.png',
+    color: '#e8d5a3',
+    textColor: '#a08040',
+    path: '/product/vanilla-milkshake',
+    slug: 'vanilla-milkshake',
+    description: 'Smooth, rich vanilla bean blended perfectly. Simple yet extraordinary.'
+  },
+  {
+    id: '6',
+    name: 'Max Chocolate Milk',
+    price: 45.00,
+    image: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50f26a9a9b40ec9058de_Shop-product-cup_4.webp',
+    backImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50e5c4d66d476164b4ae_Shop-product-back_4.svg',
+    piecesImage: 'https://cdn.prod.website-files.com/6707999f0e8f3bdab42cb624/670e50f43ac4bddacd084a9f_pieces.png',
+    color: '#2b1b14',
+    textColor: '#fff',
+    path: '/product/max-chocolate-milk',
+    slug: 'max-chocolate-milk',
+    description: 'Double the cocoa, double the intensity. For serious chocolate lovers only.'
+  }
+];

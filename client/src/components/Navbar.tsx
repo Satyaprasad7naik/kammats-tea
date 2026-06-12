@@ -4,9 +4,11 @@ import { useGSAP } from "@gsap/react";
 import { Link } from "react-router-dom";
 import { getImage } from '../utils/media';
 import NavMenu from "./NavMenu";
+import { useStore } from '../store';
 
 const Navbar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { toggleCart, cart } = useStore();
 
     useGSAP(() => {
         const els = Array.from(document.querySelectorAll<HTMLElement>(".nav-logo, .menu-hover"));
@@ -49,16 +51,29 @@ const Navbar: React.FC = () => {
                     />
                 </Link>
 
-                <div className="px-6 py-2 bg-[#f3e2d5] rounded-3xl hover:bg-[#e9aa56] text-center">
-                    <a href="#" target="_blank" rel="noopener noreferrer" className="text-[#523122] text-sm font-semibold p-0 m-0">
-                        FIND STORES
-                    </a>
+                <div className="flex gap-4 items-center">
+                    <div className="px-6 py-2 bg-[#f3e2d5] rounded-3xl hover:bg-[#e9aa56] text-center hidden md:block">
+                        <a href="#" target="_blank" rel="noopener noreferrer" className="text-[#523122] text-sm font-semibold p-0 m-0">
+                            FIND STORES
+                        </a>
+                    </div>
+                    <button
+                        onClick={toggleCart}
+                        className="relative w-12 h-12 bg-black rounded-full flex justify-center items-center hover:bg-gray-800 transition-colors"
+                    >
+                        <i className="ri-shopping-cart-2-line text-white text-xl"></i>
+                        {cart.length > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                {cart.length}
+                            </span>
+                        )}
+                    </button>
                 </div>
             </nav>
 
             {/* NavMenu receives isOpen */}
             <div
-                className="p-1 backdrop-blur-xl rounded-full menu-hover lg:inline-block hidden cursor-pointer fixed top-6 left-1/2 transform -translate-x-1/2 z-[1000]"
+                className="p-1 backdrop-blur-xl rounded-full menu-hover inline-block cursor-pointer fixed top-6 left-1/2 transform -translate-x-1/2 z-[1000]"
 
                 onClick={() => setIsMenuOpen((prev) => !prev)}
             >
