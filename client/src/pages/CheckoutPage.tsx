@@ -1,127 +1,360 @@
-import React, { useState } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect } from 'react';
+import { useCart } from '../context/CartContext';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Navbar from '../components/Navbar';
 import FooterSection from '../sections/FooterSection';
-import { useStore } from '../store';
-import { Link } from 'react-router-dom';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
+const checkoutSchema = z.object({
+  customerName: z.string().min(2, 'Name is required'),
+  phone: z.string().regex(/^[0-9]{10}$/, 'Invalid phone number (10 digits required)'),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  address: z.string().min(5, 'Address is required'),
+  city: z.string().min(2, 'City is required'),
+  state: z.string().min(2, 'State is required'),
+  pincode: z.string().regex(/^[0-9]{6}$/, 'Invalid pincode (6 digits required)'),
+});
+
+type CheckoutForm = z.infer<typeof checkoutSchema>;
 
 const CheckoutPage = () => {
-  const { cart, clearCart } = useStore();
-  const [isSuccess, setIsSuccess] = useState(false);
+  const { cart, cartTotal, clearCart } = useCart();
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successOrder, setSuccessOrder] = useState<any | null>(null);
 
-  const totalAmount = cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CheckoutForm>({
+    resolver: zodResolver(checkoutSchema),
+  });
 
-  const handleCheckout = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSuccess(true);
-    clearCart();
+  useEffect(() => {
+    // Load Razorpay script
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (cart.length === 0 && !successOrder) {
+      navigate('/shop');
+    }
+  }, [cart, navigate, successOrder]);
+
+  const loadRazorpay = async (orderData: any) => {
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_xxxxxx',
+      amount: orderData.grandTotal * 100,
+      currency: 'INR',
+      name: import.meta.env.VITE_BUSINESS_NAME || 'My Business',
+      description: 'Order Payment',
+      order_id: orderData.razorpayOrderId,
+      handler: async function (response: any) {
+        try {
+          setIsProcessing(true);
+          const verifyRes = await fetch('http://localhost:5000/api/orders/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok) throw new Error(verifyData.error || 'Payment verification failed');
+
+          setSuccessOrder(verifyData.order);
+          clearCart();
+        } catch (err: any) {
+          setError(err.message || 'Payment verification failed');
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+      prefill: {
+        name: orderData.customerName,
+        email: orderData.email || '',
+        contact: orderData.phone,
+      },
+      theme: {
+        color: '#d89945',
+      },
+      modal: {
+        ondismiss: function () {
+          setIsProcessing(false);
+          setError('Payment cancelled');
+        }
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', function (response: any) {
+      setIsProcessing(false);
+      setError(`Payment failed: ${response.error.description}`);
+    });
+    rzp.open();
   };
 
-  if (isSuccess) {
+  const onSubmit = async (data: CheckoutForm) => {
+    try {
+      setIsProcessing(true);
+      setError(null);
+
+      const items = cart.map((item: any) => ({
+        productId: item.id,
+        quantity: item.quantity
+      }));
+
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, items }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create order');
+      }
+
+      // Initiate Razorpay checkout
+      await loadRazorpay(result);
+
+    } catch (err: any) {
+      setError(err.message || 'Checkout failed');
+      setIsProcessing(false);
+    }
+  };
+
+  if (successOrder) {
     return (
-      <div className="bg-[#f5ebe0] min-h-screen text-[#3e2a21] flex flex-col justify-center items-center">
+      <div className="bg-[#f5ebe0] min-h-screen font-sans flex flex-col">
         <Navbar />
-        <div className="bg-white p-12 rounded-[2vw] text-center shadow-xl max-w-lg mt-20">
-          <i className="ri-checkbox-circle-fill text-6xl text-green-500 mb-4 block"></i>
-          <h1 className="text-4xl font-black mb-4 uppercase">Order Confirmed!</h1>
-          <p className="text-lg opacity-80 mb-8">Thank you for your purchase. Your SpyltMilk is on the way.</p>
-          <Link to="/shop" className="px-10 py-4 rounded-full bg-black text-white font-bold tracking-widest uppercase hover:bg-gray-800 transition-colors">
-            Continue Shopping
-          </Link>
+        <div className="flex-1 flex items-center justify-center pt-24 pb-12 px-4">
+          <div className="bg-white p-8 md:p-12 rounded-3xl shadow-2xl max-w-lg w-full text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="ri-check-line text-4xl text-green-500"></i>
+            </div>
+            <h1 className="text-3xl font-black text-[#3e2a21] mb-2 uppercase">Order Successful!</h1>
+            <p className="text-gray-500 mb-6">Thank you for your purchase.</p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-8 text-left">
+              <p className="text-sm text-gray-500 mb-1">Order Number:</p>
+              <p className="font-bold text-[#3e2a21]">{successOrder.orderNumber}</p>
+              <p className="text-sm text-gray-500 mt-3 mb-1">Invoice Number:</p>
+              <p className="font-bold text-[#3e2a21]">{successOrder.invoiceNumber}</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <a
+                href={`http://localhost:5000/api/orders/${successOrder.id}/invoice`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-4 bg-[#3e2a21] text-white font-bold rounded-xl hover:bg-[#d89945] transition-colors uppercase tracking-widest text-sm block text-center"
+              >
+                Download Invoice
+              </a>
+              <button
+                onClick={() => navigate('/shop')}
+                className="w-full py-4 bg-transparent border-2 border-[#3e2a21] text-[#3e2a21] font-bold rounded-xl hover:bg-[#3e2a21] hover:text-white transition-colors uppercase tracking-widest text-sm"
+              >
+                Continue Shopping
+              </button>
+            </div>
+          </div>
         </div>
+        <FooterSection />
       </div>
     );
   }
 
-  if (cart.length === 0) {
-    return (
-      <div className="bg-[#f5ebe0] min-h-screen flex flex-col justify-center items-center text-[#3e2a21]">
-        <Navbar />
-        <div className="mt-32 text-center">
-          <i className="ri-shopping-cart-line text-6xl mb-4 block opacity-50"></i>
-          <h1 className="text-4xl font-black mb-4">Your Cart is Empty</h1>
-          <Link to="/shop" className="px-8 py-3 mt-6 inline-block rounded-full bg-[#d89945] text-white font-bold uppercase tracking-wide hover:bg-amber-600 transition">
-            Go to Shop
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  // Calculate GST breakdown purely for display based on cart (backend re-calculates exactly)
+  let totalGstDisplay = 0;
+  cart.forEach((item: any) => {
+    const sub = item.price * item.quantity;
+    totalGstDisplay += (sub * item.gstRate) / 100;
+  });
+  const grandTotalDisplay = cartTotal + totalGstDisplay;
 
   return (
-    <div className="bg-[#f5ebe0] min-h-screen text-[#3e2a21] font-sans overflow-x-hidden">
+    <div className="bg-[#f5ebe0] min-h-screen text-[#3e2a21] font-sans flex flex-col">
       <Navbar />
+      <div className="flex-1 pt-32 pb-16 px-4 sm:px-6 max-w-7xl mx-auto w-full">
+        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight mb-8">Checkout</h1>
 
-      <section className="pt-32 pb-20 px-6 md:px-12 max-w-6xl mx-auto flex flex-col lg:flex-row gap-12">
+        {error && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-8 rounded shadow-sm">
+            <p className="font-bold">Error</p>
+            <p>{error}</p>
+          </div>
+        )}
 
-        {/* Checkout Form */}
-        <div className="w-full lg:w-2/3 bg-white p-8 md:p-12 rounded-[2vw] shadow-lg">
-          <h1 className="text-4xl font-black uppercase tracking-tighter mb-8 border-b pb-6">Secure Checkout</h1>
-
-          <form onSubmit={handleCheckout} className="flex flex-col gap-6">
-            <div>
-              <h2 className="text-xl font-bold mb-4">Contact Information</h2>
-              <div className="flex flex-col gap-4">
-                <input required type="email" placeholder="Email" className="w-full p-4 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#d89945]" />
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-xl font-bold mb-4 mt-6">Shipping Address</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input required type="text" placeholder="First Name" className="w-full p-4 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#d89945]" />
-                <input required type="text" placeholder="Last Name" className="w-full p-4 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#d89945]" />
-                <input required type="text" placeholder="Address" className="w-full p-4 border rounded-xl bg-gray-50 md:col-span-2 focus:outline-none focus:ring-2 focus:ring-[#d89945]" />
-                <input required type="text" placeholder="City" className="w-full p-4 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#d89945]" />
-                <input required type="text" placeholder="Postal Code" className="w-full p-4 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#d89945]" />
-              </div>
-            </div>
-
-            <button type="submit" className="mt-8 w-full py-5 bg-black text-white rounded-full font-bold text-lg uppercase tracking-widest hover:bg-gray-800 transition-colors shadow-xl">
-              Pay ₹{totalAmount.toFixed(2)}
-            </button>
-          </form>
-        </div>
-
-        {/* Order Summary */}
-        <div className="w-full lg:w-1/3">
-          <div className="bg-[#faeade] p-8 rounded-[2vw] sticky top-32">
-            <h2 className="text-2xl font-black uppercase mb-6">Order Summary</h2>
-
-            <div className="flex flex-col gap-4 mb-8">
-              {cart.map(item => (
-                <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex justify-center items-center">
-                      <img src={item.image} alt={item.name} className="h-10 object-contain" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm max-w-[120px] truncate">{item.name}</h4>
-                      <p className="text-xs opacity-70">Qty: {item.quantity}</p>
-                    </div>
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+          {/* Form Section */}
+          <div className="flex-1">
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl">
+              <h2 className="text-2xl font-bold mb-6">Delivery Details</h2>
+              <form id="checkout-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      {...register('customerName')}
+                      className={`w-full px-4 py-3 rounded-xl border ${errors.customerName ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-[#d89945]`}
+                      placeholder="John Doe"
+                    />
+                    {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName.message}</p>}
                   </div>
-                  <p className="font-bold">₹{(item.price * item.quantity).toFixed(2)}</p>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number *</label>
+                    <input
+                      type="tel"
+                      {...register('phone')}
+                      className={`w-full px-4 py-3 rounded-xl border ${errors.phone ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-[#d89945]`}
+                      placeholder="9876543210"
+                    />
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="border-t border-[#3e2a21]/20 pt-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="opacity-80">Subtotal</span>
-                <span className="font-bold">₹{totalAmount.toFixed(2)}</span>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    {...register('email')}
+                    className={`w-full px-4 py-3 rounded-xl border ${errors.email ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-[#d89945]`}
+                    placeholder="john@example.com"
+                  />
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Full Address *</label>
+                  <input
+                    type="text"
+                    {...register('address')}
+                    className={`w-full px-4 py-3 rounded-xl border ${errors.address ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-[#d89945]`}
+                    placeholder="123 Main Street, Appt 4B"
+                  />
+                  {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">City *</label>
+                    <input
+                      type="text"
+                      {...register('city')}
+                      className={`w-full px-4 py-3 rounded-xl border ${errors.city ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-[#d89945]`}
+                      placeholder="Mumbai"
+                    />
+                    {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">State *</label>
+                    <input
+                      type="text"
+                      {...register('state')}
+                      className={`w-full px-4 py-3 rounded-xl border ${errors.state ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-[#d89945]`}
+                      placeholder="Maharashtra"
+                    />
+                    {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state.message}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Pincode *</label>
+                    <input
+                      type="text"
+                      {...register('pincode')}
+                      className={`w-full px-4 py-3 rounded-xl border ${errors.pincode ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-[#d89945]`}
+                      placeholder="400001"
+                    />
+                    {errors.pincode && <p className="text-red-500 text-xs mt-1">{errors.pincode.message}</p>}
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          {/* Summary Section */}
+          <div className="lg:w-[400px]">
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl sticky top-24">
+              <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
+
+              <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
+                {cart.map((item: any) => (
+                  <div key={item.id} className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <img src={item.image} alt={item.name} className="w-12 h-12 object-contain bg-[#f5ebe0] rounded" />
+                        <span className="absolute -top-2 -right-2 bg-gray-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">
+                          {item.quantity}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-bold">{item.name}</p>
+                        <p className="text-gray-500 text-xs">GST: {item.gstRate}%</p>
+                      </div>
+                    </div>
+                    <p className="font-bold text-[#d89945]">₹{(item.price * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-center mb-4">
-                <span className="opacity-80">Shipping</span>
-                <span className="font-bold">Free</span>
+
+              <div className="border-t border-gray-200 pt-4 space-y-3">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span>
+                  <span className="font-bold">₹{cartTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>GST Total</span>
+                  <span className="font-bold">₹{totalGstDisplay.toFixed(2)}</span>
+                </div>
+                <div className="border-t border-gray-200 mt-2 pt-4 flex justify-between items-center">
+                  <span className="text-lg font-bold uppercase">Grand Total</span>
+                  <span className="text-3xl font-black text-[#3e2a21]">₹{grandTotalDisplay.toFixed(2)}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center text-xl">
-                <span className="font-black uppercase">Total</span>
-                <span className="font-black text-3xl">₹{totalAmount.toFixed(2)}</span>
+
+              <button
+                type="submit"
+                form="checkout-form"
+                disabled={isProcessing}
+                className={`w-full mt-8 py-4 bg-[#d89945] text-white font-black rounded-xl hover:bg-[#3e2a21] transition-colors uppercase tracking-widest text-lg shadow-lg ${isProcessing ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 transform'}`}
+              >
+                {isProcessing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="ri-loader-4-line animate-spin"></i> Processing...
+                  </span>
+                ) : (
+                  'Pay Now'
+                )}
+              </button>
+              <div className="mt-4 flex items-center justify-center gap-2 text-gray-400 text-xs">
+                <i className="ri-lock-2-line"></i> Secured by Razorpay
               </div>
             </div>
           </div>
         </div>
-      </section>
-
+      </div>
       <FooterSection />
     </div>
   );

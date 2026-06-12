@@ -90,12 +90,12 @@ const TestimonialSection = () => {
                                 className={`vd-card cursor-pointer ${card.translation} ${card.rotation}`}
                                 onMouseEnter={() => handlePlay(index)}
                                 onMouseLeave={() => handlePause(index)}
-                                onClick={() => setActiveVideo(card.src)}
+                                onClick={() => setActiveVideo(card.src as string)}
                             >
                                 <video
                                     key={index}
                                     ref={(el) => setVideoRef(el, index)}
-                                    src={card.src} playsInline muted preload="metadata"
+                                    src={card.src as string} playsInline muted preload="metadata"
                                     className="size-full object-cover"
                                 />
                             </div>

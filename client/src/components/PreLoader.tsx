@@ -14,6 +14,7 @@ const PreLoader = ({ onComplete }: { onComplete: () => void }) => {
 
         const resources: (HTMLImageElement | HTMLVideoElement)[] = [
             ...Array.from(document.images),
+            ...Array.from(document.querySelectorAll("video")),
         ];
 
         const total = resources.length || 1;
