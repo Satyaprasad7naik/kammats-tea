@@ -12,11 +12,14 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
+
+// Webhooks must be parsed as raw bytes before express.json() for Razorpay signature verification
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhooksRouter);
+
 app.use(express.json());
 
 app.use('/api/products', productsRouter);
 app.use('/api/orders', ordersRouter);
-app.use('/api/webhooks', webhooksRouter);
 app.use('/api/admin', adminRouter);
 
 app.get('/api/health', (req, res) => {

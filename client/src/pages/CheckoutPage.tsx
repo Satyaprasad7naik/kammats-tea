@@ -27,7 +27,7 @@ const checkoutSchema = z.object({
 type CheckoutForm = z.infer<typeof checkoutSchema>;
 
 const CheckoutPage = () => {
-  const { cart, cartTotal, clearCart } = useCart();
+  const { cart, clearCart } = useCart();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -186,13 +186,18 @@ const CheckoutPage = () => {
     );
   }
 
-  // Calculate GST breakdown purely for display based on cart (backend re-calculates exactly)
+  // Calculate GST breakdown exactly mirroring backend calculations
+  let subtotalCalc = 0;
   let totalGstDisplay = 0;
   cart.forEach((item: any) => {
-    const sub = item.price * item.quantity;
-    totalGstDisplay += (sub * item.gstRate) / 100;
+    const sub = Number((item.price * item.quantity).toFixed(2));
+    const gst = Number(((sub * item.gstRate) / 100).toFixed(2));
+    subtotalCalc += sub;
+    totalGstDisplay += gst;
   });
-  const grandTotalDisplay = cartTotal + totalGstDisplay;
+  subtotalCalc = Number(subtotalCalc.toFixed(2));
+  totalGstDisplay = Number(totalGstDisplay.toFixed(2));
+  const grandTotalDisplay = Number((subtotalCalc + totalGstDisplay).toFixed(2));
 
   return (
     <div className="bg-[#f5ebe0] min-h-screen text-[#3e2a21] font-sans flex flex-col">
@@ -322,7 +327,7 @@ const CheckoutPage = () => {
               <div className="border-t border-gray-200 pt-4 space-y-3">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span className="font-bold">₹{cartTotal.toFixed(2)}</span>
+                  <span className="font-bold">₹{subtotalCalc.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>GST Total</span>

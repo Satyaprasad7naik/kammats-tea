@@ -46,13 +46,13 @@ router.post('/', async (req, res) => {
 
       for (const item of items) {
         // Lock the product row for update to prevent concurrent race conditions on stock
-        const product = await tx.product.findUnique({
-          where: { id: item.productId }
-        });
+        const products: any[] = await tx.$queryRaw`SELECT * FROM "Product" WHERE "id" = ${item.productId} FOR UPDATE`;
 
-        if (!product) {
+        if (products.length === 0) {
           throw new Error(`Product with id ${item.productId} not found`);
         }
+
+        const product = products[0];
 
         if (product.stock < item.quantity) {
           throw new Error(`Insufficient stock for product ${product.name}`);
@@ -115,18 +115,6 @@ router.post('/', async (req, res) => {
         }
       });
 
-      // Update product stock inside the same transaction
-      for (const item of items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: item.quantity
-            }
-          }
-        });
-      }
-
       return newOrder;
     });
 
@@ -147,7 +135,10 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Missing payment details' });
     }
 
-    const secret = process.env.RAZORPAY_KEY_SECRET || 'xxxxxxxxxx';
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      throw new Error("Razorpay secret not configured");
+    }
 
     const generated_signature = crypto
       .createHmac('sha256', secret)
@@ -159,13 +150,41 @@ router.post('/verify', async (req, res) => {
     }
 
     // Payment is successful, update order status
-    const order = await prisma.order.update({
-      where: { razorpayOrderId: razorpay_order_id },
-      data: {
-        paymentStatus: 'PAID',
-        razorpayPaymentId: razorpay_payment_id,
-        invoiceNumber: `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
-      },
+    const order = await prisma.$transaction(async (tx) => {
+      // Use raw query for true row-level locking (SELECT ... FOR UPDATE) to prevent race conditions
+      const existingOrders: any[] = await tx.$queryRaw`SELECT "paymentStatus" FROM "Order" WHERE "razorpayOrderId" = ${razorpay_order_id} FOR UPDATE`;
+
+      if (existingOrders.length === 0) {
+        throw new Error('Order not found');
+      }
+
+      if (existingOrders[0].paymentStatus === 'PAID') {
+        throw new Error('Order already paid and verified');
+      }
+
+      const updatedOrder = await tx.order.update({
+        where: { razorpayOrderId: razorpay_order_id },
+        data: {
+          paymentStatus: 'PAID',
+          razorpayPaymentId: razorpay_payment_id,
+          invoiceNumber: `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
+        },
+        include: { items: true }
+      });
+
+      // Now decrement stock since payment is confirmed
+      for (const item of updatedOrder.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: item.quantity
+            }
+          }
+        });
+      }
+
+      return updatedOrder;
     });
 
     res.json({ status: 'success', order });
