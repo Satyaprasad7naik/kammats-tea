@@ -15,6 +15,10 @@ import PreLoader from "./components/PreLoader";
 import { useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import ShopPage from "./pages/ShopPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import CheckoutSuccessPage from "./pages/CheckoutSuccessPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import CartSidebar from "./components/CartSidebar";
 
 import { SplitText, ScrollSmoother } from "gsap/all";
 
@@ -71,13 +75,16 @@ const App = () => {
     return (
         <>
             {!loaded && <PreLoader onComplete={() => setLoaded(true)} />}
-
+            <CartSidebar />
             <div id="smooth-wrapper">
                 <div id="smooth-content">
                     {loaded && (
                         <Routes>
                             <Route path="/" element={<HomePage />} />
                             <Route path="/shop" element={<ShopPage />} />
+                            <Route path="/checkout" element={<CheckoutPage />} />
+                            <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
+                            <Route path="/admin" element={<AdminDashboard />} />
                         </Routes>
                     )}
                 </div>

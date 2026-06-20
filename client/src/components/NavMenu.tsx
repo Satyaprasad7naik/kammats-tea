@@ -82,9 +82,9 @@ const NavMenu: React.FC<NavMenuProps> = ({ isOpen = false }) => {
                     ))}
 
                     <div className="flex justify-center items-center gap-6 text-lg mt-10">
-                        <a href="#">YouTube</a>
-                        <a href="#">Instagram</a>
-                        <a href="#">TikTok</a>
+                        <a href="#" target="_blank" rel="noopener noreferrer">YouTube</a>
+                        <a href="#" target="_blank" rel="noopener noreferrer">Instagram</a>
+                        <a href="#" target="_blank" rel="noopener noreferrer">TikTok</a>
                     </div>
                 </div>
 
