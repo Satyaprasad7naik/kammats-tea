@@ -6,7 +6,10 @@ import { useCart } from '../context/CartContext';
 
 const CheckoutSuccessPage = () => {
   const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get('session_id');
+  const paymentIntentId = searchParams.get('payment_intent');
+  const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
+  const redirectStatus = searchParams.get('redirect_status');
+
   const navigate = useNavigate();
   const { clearCart } = useCart();
   const [loading, setLoading] = useState(true);
@@ -14,9 +17,15 @@ const CheckoutSuccessPage = () => {
   const [successOrder, setSuccessOrder] = useState<any | null>(null);
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!paymentIntentId || !paymentIntentClientSecret) {
       navigate('/shop');
       return;
+    }
+
+    if (redirectStatus !== 'succeeded') {
+        setError('Payment was not successful. Please try again.');
+        setLoading(false);
+        return;
     }
 
     const verifyPayment = async () => {
@@ -25,7 +34,7 @@ const CheckoutSuccessPage = () => {
         const res = await fetch(`${apiUrl}/api/orders/verify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId })
+          body: JSON.stringify({ payment_intent_id: paymentIntentId })
         });
 
         const data = await res.json();
@@ -41,7 +50,7 @@ const CheckoutSuccessPage = () => {
     };
 
     verifyPayment();
-  }, [sessionId, navigate, clearCart]);
+  }, [paymentIntentId, paymentIntentClientSecret, redirectStatus, navigate, clearCart]);
 
   if (loading) {
     return (

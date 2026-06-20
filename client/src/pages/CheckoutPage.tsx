@@ -6,8 +6,11 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import Navbar from '../components/Navbar';
 import FooterSection from '../sections/FooterSection';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_xxxxxx');
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, 'Name is required'),
@@ -21,11 +24,59 @@ const checkoutSchema = z.object({
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
 
+const CheckoutFormInternal = ({ onPaymentSuccess, onPaymentError }: { onPaymentSuccess: () => void, onPaymentError: (err: string) => void }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/checkout/success`,
+      },
+    });
+
+    if (error) {
+      onPaymentError(error.message || 'Payment failed');
+    } else {
+      onPaymentSuccess();
+    }
+
+    setIsProcessing(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+      <PaymentElement />
+      <button
+        type="submit"
+        disabled={!stripe || isProcessing}
+        className={`w-full py-4 bg-[#d89945] text-white font-black rounded-xl hover:bg-[#3e2a21] transition-colors uppercase tracking-widest text-lg shadow-lg ${isProcessing || !stripe ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 transform'}`}
+      >
+        {isProcessing ? (
+          <span className="flex items-center justify-center gap-2">
+            <i className="ri-loader-4-line animate-spin"></i> Processing...
+          </span>
+        ) : (
+          'Pay Now'
+        )}
+      </button>
+    </form>
+  );
+}
+
 const CheckoutPage = () => {
   const { cart } = useCart();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const {
     register,
@@ -36,10 +87,10 @@ const CheckoutPage = () => {
   });
 
   useEffect(() => {
-    if (cart.length === 0) {
+    if (cart.length === 0 && !clientSecret) {
       navigate('/shop');
     }
-  }, [cart, navigate]);
+  }, [cart, navigate, clientSecret]);
 
   const onSubmit = async (data: CheckoutForm) => {
     try {
@@ -64,17 +115,12 @@ const CheckoutPage = () => {
         throw new Error(result.error || 'Failed to create order');
       }
 
-      // Initiate Stripe checkout
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_xxxxxx');
-      if (!stripe) throw new Error("Stripe failed to load");
-
-      await stripe.redirectToCheckout({
-        sessionId: result.sessionId
-      });
+      setClientSecret(result.clientSecret);
 
     } catch (err: any) {
       setError(err.message || 'Checkout failed');
-      setIsProcessing(false);
+    } finally {
+        setIsProcessing(false);
     }
   };
 
@@ -231,22 +277,32 @@ const CheckoutPage = () => {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                form="checkout-form"
-                disabled={isProcessing}
-                className={`w-full mt-8 py-4 bg-[#d89945] text-white font-black rounded-xl hover:bg-[#3e2a21] transition-colors uppercase tracking-widest text-lg shadow-lg ${isProcessing ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 transform'}`}
-              >
-                {isProcessing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <i className="ri-loader-4-line animate-spin"></i> Processing...
-                  </span>
-                ) : (
-                  'Pay Now'
-                )}
-              </button>
+              {!clientSecret ? (
+                  <button
+                    type="submit"
+                    form="checkout-form"
+                    disabled={isProcessing}
+                    className={`w-full mt-8 py-4 bg-[#d89945] text-white font-black rounded-xl hover:bg-[#3e2a21] transition-colors uppercase tracking-widest text-lg shadow-lg ${isProcessing ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 transform'}`}
+                  >
+                    {isProcessing ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <i className="ri-loader-4-line animate-spin"></i> Processing...
+                      </span>
+                    ) : (
+                      'Continue to Payment'
+                    )}
+                  </button>
+              ) : (
+                  <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                      <CheckoutFormInternal
+                        onPaymentSuccess={() => {}}
+                        onPaymentError={(err) => setError(err)}
+                      />
+                  </Elements>
+              )}
+
               <div className="mt-4 flex items-center justify-center gap-2 text-gray-400 text-xs">
-                <i className="ri-lock-2-line"></i> Secured by Razorpay
+                <i className="ri-lock-2-line"></i> Secured by Stripe
               </div>
             </div>
           </div>

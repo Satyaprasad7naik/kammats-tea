@@ -28,19 +28,18 @@ router.post('/stripe', async (req, res) => {
         console.error(`Webhook signature verification failed: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const sessionId = session.id;
+    if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object;
+        const paymentIntentId = paymentIntent.id;
         try {
             await prisma.$transaction(async (tx) => {
                 // Use raw query for true row-level locking (SELECT ... FOR UPDATE) to prevent race conditions
-                const existingOrders = await tx.$queryRaw `SELECT "paymentStatus" FROM "Order" WHERE "stripeSessionId" = ${sessionId} FOR UPDATE`;
+                const existingOrders = await tx.$queryRaw `SELECT "paymentStatus" FROM "Order" WHERE "stripePaymentIntentId" = ${paymentIntentId} FOR UPDATE`;
                 if (existingOrders.length > 0 && existingOrders[0].paymentStatus !== 'PAID') {
                     const updatedOrder = await tx.order.update({
-                        where: { stripeSessionId: sessionId },
+                        where: { stripePaymentIntentId: paymentIntentId },
                         data: {
                             paymentStatus: 'PAID',
-                            stripePaymentIntentId: session.payment_intent,
                             invoiceNumber: `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
                         },
                         include: { items: true }
@@ -60,16 +59,16 @@ router.post('/stripe', async (req, res) => {
             });
         }
         catch (error) {
-            console.error('Error processing stripe webhook checkout completion:', error);
+            console.error('Error processing stripe webhook payment_intent.succeeded:', error);
             return res.status(500).json({ error: 'Internal webhook error' });
         }
     }
-    else if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
-        const session = event.data.object;
-        const sessionId = session.id;
+    else if (event.type === 'payment_intent.payment_failed') {
+        const paymentIntent = event.data.object;
+        const paymentIntentId = paymentIntent.id;
         try {
             await prisma.$transaction(async (tx) => {
-                const existingOrders = await tx.$queryRaw `SELECT id, "paymentStatus" FROM "Order" WHERE "stripeSessionId" = ${sessionId} FOR UPDATE`;
+                const existingOrders = await tx.$queryRaw `SELECT id, "paymentStatus" FROM "Order" WHERE "stripePaymentIntentId" = ${paymentIntentId} FOR UPDATE`;
                 if (existingOrders.length > 0 && existingOrders[0].paymentStatus !== 'PAID') {
                     const orderId = existingOrders[0].id;
                     await tx.order.update({
