@@ -20,7 +20,7 @@ interface Nutrient {
 }
 
 interface Card {
-    src: any;
+    src: string;
     rotation: string;
     name: string;
     img: string;
